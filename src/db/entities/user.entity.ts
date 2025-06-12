@@ -7,6 +7,7 @@ import { Deposit } from './deposit.entity';
 import { Withdrawal } from './withdrawal.entity';
 import { FiatTransaction } from './fiat-transaction.entity';
 import { Notification } from './notification.entity';
+import { Verification } from './verification.entity';
 
 export enum KycStatus {
   PENDING = 'pending',
@@ -21,6 +22,9 @@ export class User extends BaseEntity {
 
   @Column({ name: 'password_hash' })
   passwordHash: string;
+
+  @Column({ default: false })
+  emailVerified: boolean;
 
   @Column({
     type: 'enum',
@@ -50,4 +54,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Notification, notification => notification.user)
   notifications: Notification[];
+  
+  @OneToMany(() => Verification, verification => verification.user)
+  verifications: Verification[];
 }
