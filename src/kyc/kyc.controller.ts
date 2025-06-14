@@ -46,7 +46,6 @@ export class KycController {
     if (!documentImage) {
       throw new BadRequestException('Document image is required');
     }
-    console.log(kycData, "KYC Data");
     return this.kycService.submitKyc(req.user.userId, kycData, documentImage);
   }
 

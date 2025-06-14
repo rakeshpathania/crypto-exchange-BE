@@ -25,7 +25,6 @@ export class KycService {
       where: { id: userId },
       select: ['id', 'email', 'emailVerified', 'kycStatus', 'roles'] 
     });
-    console.log(user, "user");
     if (!user) {
       throw new NotFoundException('User not found');
     }
