@@ -15,6 +15,11 @@ export enum KycStatus {
   REJECTED = 'rejected',
 }
 
+export enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+}
+
 @Entity('users')
 export class User extends BaseEntity {
   @Column({ unique: true })
@@ -30,13 +35,19 @@ export class User extends BaseEntity {
     type: 'enum',
     enum: KycStatus,
     default: KycStatus.PENDING,
-    name: 'kyc_status'
+    name: 'kyc_status',
   })
   kycStatus: KycStatus;
+  
+  @Column({
+    type: 'simple-array',
+    default: UserRole.USER,
+  })
+  roles: UserRole[];
 
   @OneToMany(() => Wallet, wallet => wallet.user)
   wallets: Wallet[];
-
+  
   @OneToMany(() => Balance, balance => balance.user)
   balances: Balance[];
 

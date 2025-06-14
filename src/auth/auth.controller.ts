@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -6,6 +6,7 @@ import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -78,5 +79,23 @@ export class AuthController {
   @Get('check-auth')
   async checkAuth() {
     return { authenticated: true };
+  }
+  
+  @ApiOperation({ summary: 'Initiate Google Authentication' })
+  @ApiResponse({ status: 302, description: 'Redirect to Google login page' })
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  googleAuth() {
+  }
+
+  @ApiOperation({ summary: 'Google Authentication Callback' })
+  @ApiResponse({ status: 200, description: 'Authentication successful', type: AuthResponseDto })
+  @ApiResponse({ status: 401, description: 'Authentication failed' })
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  googleAuthRedirect(@Req() req, @Res() res) {
+    const { token, user } = req.user;
+    // You can customize this URL to match your frontend application
+    res.redirect(`http://localhost:3000/auth-success?token=${token}&userId=${user.id}`);
   }
 }

@@ -169,4 +169,34 @@ export class AuthService {
     const payload = { email: user.email, sub: user.id };
     return this.jwtService.sign(payload);
   }
+
+
+  async validateGoogleUser(details: any): Promise<{ token: string, user: Partial<User> }> {
+    const { email } = details;
+
+    let user = await this.usersRepository.findOne({ where: { email } });
+
+    if (user) {
+      // Update existing user if needed
+      user.emailVerified = true;
+      await this.usersRepository.save(user);
+    } else {
+      // Create a new user with a random password hash
+      const salt = await bcrypt.genSalt();
+      const passwordHash = await bcrypt.hash(Math.random().toString(36), salt);
+      
+      user = this.usersRepository.create({
+        email,
+        passwordHash,
+        emailVerified: true,
+      });
+      await this.usersRepository.save(user);
+    }
+
+    // Generate token and return user data
+    const token = this.generateToken(user);
+    const { passwordHash, ...userData } = user;
+    return { token, user: userData };
+  }
+
 }

@@ -4,10 +4,19 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
   name = 'CreateExchangeSchema1718817600000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // Enable uuid-ossp extension
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+    
     // Create users table
     await queryRunner.query(`
-      CREATE TYPE "public"."users_kyc_status_enum" AS ENUM('pending', 'verified', 'rejected');
-      CREATE TABLE "users" (
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'users_kyc_status_enum') THEN
+          CREATE TYPE "public"."users_kyc_status_enum" AS ENUM('pending', 'verified', 'rejected');
+        END IF;
+      END
+      $$;
+      CREATE TABLE IF NOT EXISTS "users" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -21,7 +30,7 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
 
     // Create wallets table
     await queryRunner.query(`
-      CREATE TABLE "wallets" (
+      CREATE TABLE IF NOT EXISTS "wallets" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -36,7 +45,7 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
 
     // Create assets table
     await queryRunner.query(`
-      CREATE TABLE "assets" (
+      CREATE TABLE IF NOT EXISTS "assets" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -51,7 +60,7 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
 
     // Create balances table
     await queryRunner.query(`
-      CREATE TABLE "balances" (
+      CREATE TABLE IF NOT EXISTS "balances" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -66,10 +75,20 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
 
     // Create orders table
     await queryRunner.query(`
-      CREATE TYPE "public"."orders_side_enum" AS ENUM('buy', 'sell');
-      CREATE TYPE "public"."orders_type_enum" AS ENUM('limit', 'market', 'stop');
-      CREATE TYPE "public"."orders_status_enum" AS ENUM('open', 'partial', 'filled', 'cancelled');
-      CREATE TABLE "orders" (
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'orders_side_enum') THEN
+          CREATE TYPE "public"."orders_side_enum" AS ENUM('buy', 'sell');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'orders_type_enum') THEN
+          CREATE TYPE "public"."orders_type_enum" AS ENUM('limit', 'market', 'stop');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'orders_status_enum') THEN
+          CREATE TYPE "public"."orders_status_enum" AS ENUM('open', 'partial', 'filled', 'cancelled');
+        END IF;
+      END
+      $$;
+      CREATE TABLE IF NOT EXISTS "orders" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -88,7 +107,7 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
 
     // Create trades table
     await queryRunner.query(`
-      CREATE TABLE "trades" (
+      CREATE TABLE IF NOT EXISTS "trades" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -106,8 +125,14 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
 
     // Create deposits table
     await queryRunner.query(`
-      CREATE TYPE "public"."deposits_status_enum" AS ENUM('pending', 'confirmed', 'failed');
-      CREATE TABLE "deposits" (
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'deposits_status_enum') THEN
+          CREATE TYPE "public"."deposits_status_enum" AS ENUM('pending', 'confirmed', 'failed');
+        END IF;
+      END
+      $$;
+      CREATE TABLE IF NOT EXISTS "deposits" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -125,8 +150,14 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
 
     // Create withdrawals table
     await queryRunner.query(`
-      CREATE TYPE "public"."withdrawals_status_enum" AS ENUM('pending', 'broadcast', 'confirmed', 'failed');
-      CREATE TABLE "withdrawals" (
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'withdrawals_status_enum') THEN
+          CREATE TYPE "public"."withdrawals_status_enum" AS ENUM('pending', 'broadcast', 'confirmed', 'failed');
+        END IF;
+      END
+      $$;
+      CREATE TABLE IF NOT EXISTS "withdrawals" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -146,9 +177,17 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
 
     // Create fiat_transactions table
     await queryRunner.query(`
-      CREATE TYPE "public"."fiat_transactions_type_enum" AS ENUM('fiat_deposit', 'fiat_withdrawal');
-      CREATE TYPE "public"."fiat_transactions_status_enum" AS ENUM('pending', 'completed', 'failed');
-      CREATE TABLE "fiat_transactions" (
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'fiat_transactions_type_enum') THEN
+          CREATE TYPE "public"."fiat_transactions_type_enum" AS ENUM('fiat_deposit', 'fiat_withdrawal');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'fiat_transactions_status_enum') THEN
+          CREATE TYPE "public"."fiat_transactions_status_enum" AS ENUM('pending', 'completed', 'failed');
+        END IF;
+      END
+      $$;
+      CREATE TABLE IF NOT EXISTS "fiat_transactions" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -165,9 +204,17 @@ export class CreateExchangeSchema1718817600000 implements MigrationInterface {
 
     // Create notifications table
     await queryRunner.query(`
-      CREATE TYPE "public"."notifications_type_enum" AS ENUM('email', 'sms', 'push');
-      CREATE TYPE "public"."notifications_status_enum" AS ENUM('queued', 'sent', 'failed');
-      CREATE TABLE "notifications" (
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notifications_type_enum') THEN
+          CREATE TYPE "public"."notifications_type_enum" AS ENUM('email', 'sms', 'push');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notifications_status_enum') THEN
+          CREATE TYPE "public"."notifications_status_enum" AS ENUM('queued', 'sent', 'failed');
+        END IF;
+      END
+      $$;
+      CREATE TABLE IF NOT EXISTS "notifications" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),

@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddEmailVerifiedToUser1718817600002 implements MigrationInterface {
-    name = 'AddEmailVerifiedToUser1718817600002'
+export class AddRolesToUser1718817600004 implements MigrationInterface {
+    name = 'AddRolesToUser1718817600004'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
@@ -9,10 +9,10 @@ export class AddEmailVerifiedToUser1718817600002 implements MigrationInterface {
             BEGIN
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'users' AND column_name = 'email_verified'
+                    WHERE table_name = 'users' AND column_name = 'roles'
                 ) THEN
                     ALTER TABLE "users" 
-                    ADD COLUMN "email_verified" boolean NOT NULL DEFAULT false;
+                    ADD COLUMN "roles" text NOT NULL DEFAULT 'user';
                 END IF;
             END
             $$;
@@ -20,6 +20,8 @@ export class AddEmailVerifiedToUser1718817600002 implements MigrationInterface {
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "email_verified"`);
+        await queryRunner.query(`
+            ALTER TABLE "users" DROP COLUMN IF EXISTS "roles"
+        `);
     }
 }
