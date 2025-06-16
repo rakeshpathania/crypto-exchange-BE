@@ -22,6 +22,8 @@ export enum UserRole {
 
 @Entity('users')
 export class User extends BaseEntity {
+  @Column({ nullable: true })
+  stripeCustomerId: string;
   @Column({ unique: true })
   email: string;
 

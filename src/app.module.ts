@@ -7,6 +7,7 @@ import { EmailModule } from './email/email.module';
 import { KycModule } from './kyc';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { DepositModule } from './deposit/deposit.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AppService } from './app.service';
     AuthModule,
     EmailModule,
     KycModule,
+    DepositModule
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -9,23 +9,36 @@ export enum DepositStatus {
   FAILED = 'failed',
 }
 
+export enum DepositMethod {
+  CARD = 'card',
+  CRYPTO = 'crypto',
+}
+
+export enum CryptoNetwork {
+  ETHEREUM = 'ethereum',
+  BINANCE_SMART_CHAIN = 'bsc',
+  POLYGON = 'polygon',
+  SOLANA = 'solana',
+  TRON = 'tron',
+}
+
 @Entity('deposits')
 export class Deposit extends BaseEntity {
   @ManyToOne(() => User, user => user.deposits)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user: User;
 
   @Column()
   userId: string;
 
   @ManyToOne(() => Asset, asset => asset.deposits)
-  @JoinColumn({ name: 'assetId' })
+  @JoinColumn({ name: 'asset_id' })
   asset: Asset;
 
   @Column()
   assetId: string;
 
-  @Column()
+  @Column({ nullable: true })
   txHash: string;
 
   @Column('decimal', { precision: 36, scale: 18 })
@@ -38,6 +51,20 @@ export class Deposit extends BaseEntity {
   })
   status: DepositStatus;
 
-  @Column()
+  @Column({ nullable: true })
   network: string;
+
+  @Column({
+    type: 'enum',
+    enum: DepositMethod,
+    default: DepositMethod.CRYPTO,
+  })
+  method: DepositMethod;
+
+  @Column({ nullable: true })
+  paymentIntentId: string;
+
+  @Column({ nullable: true })
+  cryptoAddress: string;
+
 }

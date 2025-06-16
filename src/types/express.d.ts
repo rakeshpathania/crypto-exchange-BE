@@ -1,5 +1,9 @@
 // express.d.ts
 declare namespace Express {
+  interface Request {
+    rawBody?: Buffer;
+  }
+  
   namespace Multer {
     interface File {
       fieldname: string;
