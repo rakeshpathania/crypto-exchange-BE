@@ -20,6 +20,7 @@ export enum CryptoNetwork {
   POLYGON = 'polygon',
   SOLANA = 'solana',
   TRON = 'tron',
+  BITCOIN = 'BITCOIN',
 }
 
 @Entity('deposits')

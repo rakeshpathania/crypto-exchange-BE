@@ -20,7 +20,7 @@ export class StripeService {
     private assetRepository: Repository<Asset>,
   ) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_your_key', {
-      apiVersion: '2025-05-28.basil',
+      apiVersion: '2023-10-16',
     });
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_your_webhook_secret';
     this.coinGeckoApiUrl = process.env.COINGECKO_API_URL || 'https://api.coingecko.com/api/v3';

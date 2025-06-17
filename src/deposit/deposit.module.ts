@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DepositController } from './deposit.controller';
 import { StripeWebhookController } from './stripe-webhook.controller';
+import { BlockchainWebhookController } from './blockchain-webhook.controller';
 import { DepositService } from './deposit.service';
 import { Deposit } from '../db/entities/deposit.entity';
 import { User } from '../db/entities/user.entity';
@@ -14,7 +15,7 @@ import { CryptoDepositService } from './crypto-deposit.service';
   imports: [
     TypeOrmModule.forFeature([Deposit, User, Asset, Balance]),
   ],
-  controllers: [DepositController, StripeWebhookController],
+  controllers: [DepositController, StripeWebhookController, BlockchainWebhookController],
   providers: [DepositService, StripeService, CryptoDepositService],
   exports: [DepositService],
 })

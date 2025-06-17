@@ -119,9 +119,9 @@ export class DepositService {
       // Get payment intent details including metadata
       const paymentIntent = await this.stripeService.getPaymentIntent(deposit.paymentIntentId);
       
-      // if (paymentIntent.status !== 'succeeded') {
-      //   throw new BadRequestException('Payment failed');
-      // }
+      if (paymentIntent.status !== 'succeeded') {
+        throw new BadRequestException('Payment failed');
+      }
       
       // Get crypto amount from payment intent metadata if available
       if (paymentIntent.metadata?.cryptoAmount) {
@@ -163,5 +163,48 @@ export class DepositService {
       relations: ['asset'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async createCryptoDeposit(data: {
+    userId: string;
+    assetId: string;
+    amount: number;
+    txHash: string;
+    network: CryptoNetwork;
+  }): Promise<Deposit> {
+    const user = await this.userRepository.findOne({ where: { id: data.userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const asset = await this.assetRepository.findOne({ where: { id: data.assetId } });
+    if (!asset) {
+      throw new NotFoundException('Asset not found');
+    }
+
+    // Check if this transaction has already been processed
+    const existingDeposit = await this.depositRepository.findOne({
+      where: { txHash: data.txHash }
+    });
+
+    if (existingDeposit) {
+      return existingDeposit; // Prevent duplicate processing
+    }
+
+    // Create new deposit record
+    const deposit = this.depositRepository.create({
+      user,
+      userId: data.userId,
+      asset,
+      assetId: data.assetId,
+      amount: data.amount,
+      status: DepositStatus.PENDING,
+      method: DepositMethod.CRYPTO,
+      network: data.network,
+      txHash: data.txHash,
+    });
+
+    await this.depositRepository.save(deposit);
+    return deposit;
   }
 }

@@ -1,11 +1,11 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Body, Get, Param, UseGuards, Request, Headers, UnauthorizedException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { DepositService } from './deposit.service';
 import { StripeService } from './stripe.service';
 import { CardDepositDto } from './dto/card-deposit.dto';
 import { CryptoDepositDto } from './dto/crypto-deposit.dto';
-import { Deposit } from '../db/entities/deposit.entity';
+import { Deposit, CryptoNetwork } from '../db/entities/deposit.entity';
 
 @ApiTags('Deposits')
 @ApiBearerAuth()
@@ -74,4 +74,6 @@ export class DepositController {
   async getUserDeposits(@Request() req): Promise<Deposit[]> {
     return this.depositService.getUserDeposits(req.user.userId);
   }
+
+
 }
