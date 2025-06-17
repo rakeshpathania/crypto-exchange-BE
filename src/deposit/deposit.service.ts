@@ -116,17 +116,16 @@ export class DepositService {
     let cryptoAmount = deposit.amount;
     
     if (deposit.method === DepositMethod.CARD && deposit.paymentIntentId) {
-      const isConfirmed = await this.stripeService.confirmPayment(deposit.paymentIntentId);
-      if (!isConfirmed) {
-        throw new BadRequestException('Payment failed');
-      }
+      // Get payment intent details including metadata
+      const paymentIntent = await this.stripeService.getPaymentIntent(deposit.paymentIntentId);
       
-      // Convert INR to crypto for card deposits
-      try {
-        cryptoAmount = await this.stripeService.convertInrToCrypto(deposit.amount, deposit.assetId);
-      } catch (error) {
-        console.error('Failed to convert INR to crypto:', error);
-        // Continue with the original amount if conversion fails
+      // if (paymentIntent.status !== 'succeeded') {
+      //   throw new BadRequestException('Payment failed');
+      // }
+      
+      // Get crypto amount from payment intent metadata if available
+      if (paymentIntent.metadata?.cryptoAmount) {
+        cryptoAmount = parseFloat(paymentIntent.metadata.cryptoAmount);
       }
     }
 

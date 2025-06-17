@@ -11,6 +11,7 @@ import axios from 'axios';
 export class StripeService {
   private stripe: Stripe;
   private webhookSecret: string;
+  private coinGeckoApiUrl: string;
 
   constructor(
     @InjectRepository(User)
@@ -22,6 +23,7 @@ export class StripeService {
       apiVersion: '2025-05-28.basil',
     });
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_your_webhook_secret';
+    this.coinGeckoApiUrl = process.env.COINGECKO_API_URL || 'https://api.coingecko.com/api/v3';
   }
 
   async getOrCreateCustomer(user: User): Promise<string> {
@@ -73,20 +75,19 @@ export class StripeService {
         cryptoAmount = await this.convertInrToCrypto(depositData.amount, depositData.assetId);
       } catch (error) {
         console.error('Failed to calculate crypto amount:', error);
-        // Continue with payment even if conversion fails
       }
     }
 
     // Create a payment intent
     const paymentIntent = await this.stripe.paymentIntents.create({
-      amount: Math.round(depositData.amount * 100), // Convert to cents
+      amount: Math.round(depositData.amount * 100), // Convert to paise
       currency: 'inr',
       customer: customerId,
       payment_method: paymentMethod.id,
       confirm: true,
       automatic_payment_methods: {
         enabled: true,
-        allow_redirects: 'never', // 🚫 Disable redirect-based methods
+        allow_redirects: 'never',
       },
       metadata: {
         userId,
@@ -94,6 +95,8 @@ export class StripeService {
         cryptoAmount: cryptoAmount ? cryptoAmount.toString() : undefined,
       },
     });
+
+    console.log(`Payment Intent created for user ${userId}:`, paymentIntent);
 
     if (!paymentIntent.client_secret) {
       throw new Error('Failed to create payment intent: No client secret returned');
@@ -109,6 +112,10 @@ export class StripeService {
   async confirmPayment(paymentIntentId: string): Promise<boolean> {
     const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
     return paymentIntent.status === 'succeeded';
+  }
+  
+  async getPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
+    return this.stripe.paymentIntents.retrieve(paymentIntentId);
   }
 
   async createSetupIntent(userId: string): Promise<{ clientSecret: string }> {
@@ -149,11 +156,30 @@ export class StripeService {
 
   constructWebhookEvent(rawBody: Buffer, signature: string): Stripe.Event {
     return this.stripe.webhooks.constructEvent(
-      rawBody.toString(),
+      rawBody,
       signature,
       this.webhookSecret
     );
   }
+
+  // Map of common crypto symbols to CoinGecko IDs
+  private readonly symbolToId: Record<string, string> = {
+    'BTC': 'bitcoin',
+    'ETH': 'ethereum',
+    'USDT': 'tether',
+    'USDC': 'usd-coin',
+    'BNB': 'binancecoin',
+    'XRP': 'ripple',
+    'ADA': 'cardano',
+    'DOGE': 'dogecoin',
+    'SOL': 'solana',
+    'DOT': 'polkadot',
+    'MATIC': 'matic-network',
+    'SHIB': 'shiba-inu',
+    'LTC': 'litecoin',
+    'AVAX': 'avalanche-2',
+    'LINK': 'chainlink',
+  };
 
   async convertInrToCrypto(amountInr: number, assetId: string): Promise<number> {
     try {
@@ -164,17 +190,20 @@ export class StripeService {
       }
 
       const cryptoSymbol = asset.symbol;
+      
+      // Get CoinGecko ID from symbol or use lowercase symbol as fallback
+      const coinGeckoId = this.symbolToId[cryptoSymbol] || cryptoSymbol.toLowerCase();
 
       // Fetch the current exchange rate from a reliable API
       const response = await axios.get(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${cryptoSymbol.toLowerCase()}&vs_currencies=inr`
+        `${this.coinGeckoApiUrl}/simple/price?ids=${coinGeckoId}&vs_currencies=inr`
       );
-      console.log(`Exchange rate for ${cryptoSymbol}:`, response.data);
+      
       // Extract the exchange rate (1 CRYPTO = X INR)
-      const exchangeRate = response.data[cryptoSymbol.toLowerCase()]?.inr;
+      const exchangeRate = response.data[coinGeckoId]?.inr;
 
       if (!exchangeRate) {
-        throw new Error(`Exchange rate not available for ${cryptoSymbol}`);
+        throw new Error(`Exchange rate not available for ${cryptoSymbol} (ID: ${coinGeckoId})`);
       }
 
       // Calculate the crypto amount (INR amount / exchange rate)

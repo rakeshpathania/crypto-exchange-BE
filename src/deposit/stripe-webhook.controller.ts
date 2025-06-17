@@ -1,4 +1,4 @@
-import { Controller, Post, Headers, Body, RawBodyRequest, Req } from '@nestjs/common';
+import { Controller, Post, Headers, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Request } from 'express';
 import { DepositService } from './deposit.service';
@@ -6,6 +6,8 @@ import { StripeService } from './stripe.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Deposit, DepositStatus } from '../db/entities/deposit.entity';
+
+
 
 @ApiTags('Stripe Webhooks')
 @Controller('webhooks/stripe')
@@ -21,7 +23,7 @@ export class StripeWebhookController {
   @Post()
   async handleWebhook(
     @Headers('stripe-signature') signature: string,
-    @Req() req: RawBodyRequest<Request>,
+    @Req() req: Request,
   ) {
     if (!signature) {
       return { received: false, error: 'Missing stripe-signature header' };
@@ -31,6 +33,7 @@ export class StripeWebhookController {
       if (!req.rawBody) {
         return { received: false, error: 'Missing raw body in request' };
       }
+      
       const event = this.stripeService.constructWebhookEvent(
         req.rawBody,
         signature,
@@ -44,8 +47,14 @@ export class StripeWebhookController {
         case 'payment_intent.payment_failed':
           await this.handlePaymentIntentFailed(event.data.object);
           break;
+        case 'payment_intent.created':
+        case 'payment_intent.canceled':
+        case 'payment_intent.processing':
+        case 'payment_intent.amount_capturable_updated':
+        console.log(`Received ${event.type} event for payment intent: ${event.data.object.id}`);
+        break;
         default:
-          console.log(`Unhandled event type ${event.type}`);
+          console.log(`Received unhandled event type: ${event.type}`);
       }
 
       return { received: true };

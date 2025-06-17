@@ -6,14 +6,14 @@ import { Asset } from './asset.entity';
 @Entity('balances')
 export class Balance extends BaseEntity {
   @ManyToOne(() => User, user => user.balances)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user: User;
 
   @Column()
   userId: string;
 
   @ManyToOne(() => Asset, asset => asset.balances)
-  @JoinColumn({ name: 'assetId' })
+  @JoinColumn({ name: 'asset_id' })
   asset: Asset;
 
   @Column()
