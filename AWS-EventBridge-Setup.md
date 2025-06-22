@@ -141,10 +141,14 @@ API_LAMBDA_NAME=crypto-api-handler
 ## 8. Test the Setup
 
 ```bash
-# Test event publishing
+# Test event publishing to custom bus
 aws events put-events \
-  --entries Source=custom.crypto.deposit,DetailType=AddressMonitoring,Detail='{"address":"0x123","network":"ETHEREUM","type":"MONITOR_ADDRESS"}' \
-  --event-bus-name crypto-events-dev \
+  --entries '[{"Source":"custom.crypto.deposit","DetailType":"AddressMonitoring","Detail":"{\"address\":\"0x123\",\"network\":\"ETHEREUM\",\"type\":\"MONITOR_ADDRESS\"}","EventBusName":"crypto-events-dev"}]' \
+  --region us-east-1
+
+# Test transaction event
+aws events put-events \
+  --entries '[{"Source":"custom.crypto.transaction","DetailType":"TransactionDetected","Detail":"{\"txHash\":\"0xabc123\",\"address\":\"0x123\",\"amount\":\"0.1\",\"network\":\"ETHEREUM\"}","EventBusName":"crypto-events-dev"}]' \
   --region us-east-1
 ```
 

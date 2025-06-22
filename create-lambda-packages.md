@@ -18,6 +18,25 @@ mkdir -p db
 cp ../../src/db/data-source.ts db/data-source.ts
 cp ../../src/db/entities db/entities
 
+
+# Create TypeScript config
+cat > tsconfig.json << EOF
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+EOF
+
 # Create package.json
 cat > package.json << EOF
 {
@@ -37,8 +56,10 @@ EOF
 
 # Install dependencies
 cd
+npm install
 
 # Compile TypeScript to JavaScript
+# make sure the tsconfig.json should be there in your directory
 npx tsc index.ts --target es2020 --module commonjs --esModuleInterop
 
 # Create zip file
@@ -159,16 +180,3 @@ chmod +x build-lambda.sh
 - **node_modules/** - All required dependencies
 - **package.json** - Package configuration
 
-## After creating the ZIP files:
-
-You can then use them in the AWS CLI commands:
-
-```bash
-aws lambda create-function \
-  --function-name crypto-monitor-transactions \
-  --runtime nodejs18.x \
-  --role arn:aws:iam::YOUR_ACCOUNT_ID:role/lambda-execution-role \
-  --handler index.handler \
-  --zip-file fileb://monitor-transactions.zip \
-  --region us-east-1
-```
