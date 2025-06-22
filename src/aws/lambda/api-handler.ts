@@ -1,9 +1,9 @@
-import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import axios from 'axios';
+import dataSource from '../../db/data-source';
+import { Deposit } from '../../db/entities/deposit.entity';
 
 // Initialize clients
-const dynamoDb = new DynamoDBClient({ region: process.env.AWS_REGION });
 const sns = new SNSClient({ region: process.env.AWS_REGION });
 
 // API endpoint
@@ -33,7 +33,7 @@ async function processDeposit(data: {
   network: string;
 }): Promise<void> {
   try {
-    // Get user mapping from DynamoDB
+    // Get user mapping from PostgreSQL
     const addressData = await getAddressData(data.address);
     
     if (!addressData) {
@@ -41,8 +41,8 @@ async function processDeposit(data: {
       return;
     }
 
-    const userId = addressData.userId.S;
-    const assetId = addressData.assetId.S;
+    const userId = addressData.userId;
+    const assetId = addressData.assetId;
 
     // Verify transaction on blockchain
     const isValid = await verifyTransaction(data.txHash, data.address, data.amount, data.network);
@@ -59,7 +59,7 @@ async function processDeposit(data: {
     }
 
     // Call backend API to create and confirm deposit
-    await updateUserBalance(userId, assetId, data.amount, data.txHash, data.network, data.address);
+    await updateUserBalance(data.amount, data.txHash, data.network, data.address);
 
     // Send notification
     await sendNotification('Deposit received', {
@@ -81,18 +81,17 @@ async function processDeposit(data: {
 }
 
 /**
- * Get address data from DynamoDB
+ * Get address data from PostgreSQL
  */
-async function getAddressData(address: string): Promise<any> {
-  const params = {
-    TableName: process.env.DEPOSIT_ADDRESSES_TABLE,
-    Key: {
-      address: { S: address.toLowerCase() },
-    },
-  };
+async function getAddressData(address: string): Promise<Deposit | null> {
+  if (!dataSource.isInitialized) {
+    await dataSource.initialize();
+  }
 
-  const result = await dynamoDb.send(new GetItemCommand(params));
-  return result.Item;
+  const depositRepo = dataSource.getRepository(Deposit);
+  return await depositRepo.findOne({
+    where: { cryptoAddress: address.toLowerCase() }
+  });
 }
 
 /**
@@ -139,8 +138,6 @@ async function verifyTransaction(
  * Update user balance via API call
  */
 async function updateUserBalance(
-  userId: string,
-  assetId: string,
   amount: string,
   txHash: string,
   network: string,
@@ -184,6 +181,6 @@ async function sendNotification(subject: string, message: any): Promise<void> {
     Subject: subject,
     Message: JSON.stringify(message, null, 2),
   };
-
-  await sns.send(new PublishCommand(params));
+  console.log('Sending notification:', params);
+  // await sns.send(new PublishCommand(params));
 }

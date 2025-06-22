@@ -54,7 +54,8 @@ export class DepositController {
     @Request() req,
     @Body() depositData: CryptoDepositDto,
   ) {
-    return this.depositService.initiateCryptoDeposit(req.user.userId, depositData);
+    console.log('Initiating crypto deposit:', depositData);
+    return this.depositService.initiateCryptoDeposit(req.user.id, depositData);
   }
 
   @ApiOperation({ summary: 'Confirm a deposit' })

@@ -1,11 +1,12 @@
-import { DynamoDBClient, ScanCommand, UpdateItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { Alchemy, Network, AssetTransfersCategory } from 'alchemy-sdk';
 import axios from 'axios';
+import { Not, IsNull } from 'typeorm';
+import dataSource from '../../db/data-source';
+import { Deposit } from '../../db/entities/deposit.entity';
 
 // Initialize clients
-const dynamoDb = new DynamoDBClient({ region: process.env.AWS_REGION });
 const eventBridge = new EventBridgeClient({ region: process.env.AWS_REGION });
 const lambda = new LambdaClient({ region: process.env.AWS_REGION });
 
@@ -37,7 +38,8 @@ type BitcoinTxOutput = {
 export const handler = async (event: any): Promise<any> => {
   console.log('Event received:', JSON.stringify(event));
 
-  if (event.source === 'aws.events' && event.detail.type === 'Scheduled Event') {
+  // Handle scheduled events from default bus
+  if (event.source === 'aws.events' || event['detail-type'] === 'Scheduled Event') {
     // Scheduled event to scan all addresses
     await scanAllAddresses();
   } else if (event.source === 'custom.crypto.deposit') {
@@ -54,29 +56,29 @@ export const handler = async (event: any): Promise<any> => {
 };
 
 /**
- * Scan all addresses in DynamoDB and check for new transactions
+ * Scan all addresses in PostgreSQL and check for new transactions
  */
 async function scanAllAddresses(): Promise<void> {
-  const scanParams = {
-    TableName: process.env.DEPOSIT_ADDRESSES_TABLE,
-  };
+  if (!dataSource.isInitialized) {
+    await dataSource.initialize();
+  }
 
-  const result = await dynamoDb.send(new ScanCommand(scanParams));
+  const depositRepo = dataSource.getRepository(Deposit);
+  const deposits = await depositRepo.find({
+    where: { cryptoAddress: Not(IsNull()) },
+    select: ['cryptoAddress', 'network']
+  });
 
-  if (!result.Items || result.Items.length === 0) {
+  if (deposits.length === 0) {
     console.log('No addresses to monitor');
     return;
   }
 
   // Process each address in parallel
   await Promise.all(
-    result.Items.map(async (item) => {
-      const address = item.address.S;
-      const network = item.network.S;
-      if (address && network) {
-        await monitorAddress(address, network);
-      } else {
-        console.warn(`Skipping item with missing address or network:`, item);
+    deposits.map(async (deposit) => {
+      if (deposit.cryptoAddress && deposit.network) {
+        await monitorAddress(deposit.cryptoAddress, deposit.network);
       }
     })
   );
@@ -110,11 +112,9 @@ async function monitorEthereumAddress(address: string): Promise<void> {
     maxCount: 10,
   });
 
-  // Get the last processed block from DynamoDB
+  // Get the last processed block from PostgreSQL
   const addressData = await getAddressData(address);
-  const lastProcessedBlock = addressData?.lastProcessedBlock?.N
-    ? parseInt(addressData.lastProcessedBlock.N)
-    : 0;
+  const lastProcessedBlock = addressData?.lastProcessedBlock || 0;
 
   // Process new transactions
   for (const tx of transactions.transfers) {
@@ -147,9 +147,9 @@ async function monitorBitcoinAddress(address: string): Promise<void> {
 
   const transactions = response.data.data[address].transactions;
 
-  // Get the last processed transaction from DynamoDB
+  // Get the last processed transaction from PostgreSQL
   const addressData = await getAddressData(address);
-  const processedTxs = addressData?.processedTransactions?.SS || [];
+  const processedTxs = addressData?.processedTransactions || [];
 
   // Process new transactions
   for (const txHash of transactions) {
@@ -208,54 +208,51 @@ async function processTransaction(
 }
 
 /**
- * Get address data from DynamoDB
+ * Get address data from PostgreSQL
  */
-async function getAddressData(address: string): Promise<any> {
-  const params = {
-    TableName: process.env.DEPOSIT_ADDRESSES_TABLE,
-    Key: {
-      address: { S: address.toLowerCase() },
-    },
-  };
+async function getAddressData(address: string): Promise<Deposit | null> {
+  if (!dataSource.isInitialized) {
+    await dataSource.initialize();
+  }
 
-  const result = await dynamoDb.send(new GetItemCommand(params));
-  return result.Item;
+  const depositRepo = dataSource.getRepository(Deposit);
+  return await depositRepo.findOne({
+    where: { cryptoAddress: address.toLowerCase() }
+  });
 }
 
 /**
  * Update the last processed block for an address
  */
 async function updateLastProcessedBlock(address: string, blockNumber: number): Promise<void> {
-  const params = {
-    TableName: process.env.DEPOSIT_ADDRESSES_TABLE,
-    Key: {
-      address: { S: address.toLowerCase() },
-    },
-    UpdateExpression: 'SET lastProcessedBlock = :block',
-    ExpressionAttributeValues: {
-      ':block': { N: blockNumber.toString() },
-    },
-  };
+  if (!dataSource.isInitialized) {
+    await dataSource.initialize();
+  }
 
-  await dynamoDb.send(new UpdateItemCommand(params));
+  const depositRepo = dataSource.getRepository(Deposit);
+  await depositRepo.update(
+    { cryptoAddress: address.toLowerCase() },
+    { lastProcessedBlock: blockNumber }
+  );
 }
 
 /**
  * Add a transaction to the processed transactions list
  */
 async function addProcessedTransaction(address: string, txHash: string): Promise<void> {
-  const params = {
-    TableName: process.env.DEPOSIT_ADDRESSES_TABLE,
-    Key: {
-      address: { S: address.toLowerCase() },
-    },
-    UpdateExpression: 'ADD processedTransactions :tx',
-    ExpressionAttributeValues: {
-      ':tx': { SS: [txHash] },
-    },
-  };
+  if (!dataSource.isInitialized) {
+    await dataSource.initialize();
+  }
 
-  await dynamoDb.send(new UpdateItemCommand(params));
+  const depositRepo = dataSource.getRepository(Deposit);
+  const deposit = await depositRepo.findOne({
+    where: { cryptoAddress: address.toLowerCase() }
+  });
+  
+  if (deposit) {
+    deposit.processedTransactions = [...(deposit.processedTransactions || []), txHash];
+    await depositRepo.save(deposit);
+  }
 }
 
 /**

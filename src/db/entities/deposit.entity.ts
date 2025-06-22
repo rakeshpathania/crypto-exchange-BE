@@ -68,4 +68,13 @@ export class Deposit extends BaseEntity {
   @Column({ nullable: true })
   cryptoAddress: string;
 
+  @Column({ type: 'bigint', nullable: true, default: 0 })
+  lastProcessedBlock: number;
+
+  @Column({ type: 'text', array: true, nullable: true, default: [] })
+  processedTransactions: string[];
+
+  @Column({ type: 'timestamp', nullable: true })
+  confirmedAt: Date;
+
 }

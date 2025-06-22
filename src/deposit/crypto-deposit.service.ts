@@ -5,11 +5,6 @@ import { Deposit, DepositStatus, CryptoNetwork } from '../db/entities/deposit.en
 import { Asset } from '../db/entities/asset.entity';
 import { Balance } from '../db/entities/balance.entity';
 import { 
-  DynamoDBClient, 
-  PutItemCommand,
-  GetItemCommand 
-} from '@aws-sdk/client-dynamodb';
-import { 
   EventBridgeClient, 
   PutEventsCommand 
 } from '@aws-sdk/client-eventbridge';
@@ -18,7 +13,6 @@ import { Alchemy, Network } from 'alchemy-sdk';
 
 @Injectable()
 export class CryptoDepositService {
-  private dynamoDb: DynamoDBClient;
   private eventBridge: EventBridgeClient;
   private alchemy: Alchemy;
   private web3: Web3;
@@ -32,7 +26,6 @@ export class CryptoDepositService {
     private assetRepository: Repository<Asset>,
   ) {
     // Initialize AWS clients
-    this.dynamoDb = new DynamoDBClient({ region: process.env.AWS_REGION });
     this.eventBridge = new EventBridgeClient({ region: process.env.AWS_REGION });
 
     // Initialize Alchemy SDK for Ethereum
@@ -48,7 +41,6 @@ export class CryptoDepositService {
 
   async generateDepositAddress(
     userId: string,
-    assetId: string,
     network: CryptoNetwork,
   ): Promise<string> {
     try {
@@ -65,23 +57,8 @@ export class CryptoDepositService {
       } else {
         throw new Error(`Unsupported network: ${network}`);
       }
-
+      console.log(userId, "userId2");
       console.log(`Generated ${network} address ${address} for user ${userId}`);
-
-      // Store the address mapping in DynamoDB
-      await this.dynamoDb.send(new PutItemCommand({
-        TableName: process.env.DEPOSIT_ADDRESSES_TABLE,
-        Item: {
-          address: { S: address.toLowerCase() },
-          userId: { S: userId },
-          assetId: { S: assetId },
-          network: { S: network },
-          createdAt: { N: Date.now().toString() },
-          lastProcessedBlock: { N: '0' },
-          processedTransactions: { SS: [] },
-        },
-      }));
-
       // Set up blockchain monitoring for this address
       await this.setupAddressMonitoring(address, network);
 
@@ -103,7 +80,7 @@ export class CryptoDepositService {
           network,
           type: 'MONITOR_ADDRESS',
         }),
-        EventBusName: process.env.EVENT_BUS_NAME,
+        EventBusName: process.env.EVENT_BUS_NAME, // Still use custom bus for address monitoring
       }],
     };
 
@@ -116,15 +93,16 @@ export class CryptoDepositService {
     amount: string,
     network: CryptoNetwork,
   ): Promise<void> {
-    try {
+    // Use database transaction for atomicity
+    return await this.depositRepository.manager.transaction(async (manager) => {
       console.log(`Processing transaction ${txHash} for address ${address}`);
       
-      // Check if transaction already processed
-      const existingDeposit = await this.depositRepository.findOne({
+      // Check if transaction already processed (idempotency)
+      const existingTxDeposit = await manager.findOne(Deposit, {
         where: { txHash }
       });
       
-      if (existingDeposit) {
+      if (existingTxDeposit) {
         console.log(`Transaction ${txHash} already processed, skipping`);
         return;
       }
@@ -136,53 +114,34 @@ export class CryptoDepositService {
         return;
       }
       
-      // Get user mapping from DynamoDB
-      const addressData = await this.dynamoDb.send(new GetItemCommand({
-        TableName: process.env.DEPOSIT_ADDRESSES_TABLE,
-        Key: {
-          address: { S: address.toLowerCase() },
+      // Find existing deposit record by address (with row lock to prevent race conditions)
+      const deposit = await manager.findOne(Deposit, {
+        where: { 
+          cryptoAddress: address.toLowerCase(),
+          status: DepositStatus.PENDING 
         },
-      }));
-
-      if (!addressData.Item) {
-        console.error('Address not found in mapping table:', address);
-        return;
-      }
-
-      const userId = addressData.Item.userId?.S;
-      const assetId = addressData.Item.assetId?.S;
-
-      if (!userId || !assetId) {
-        console.error('userId or assetId is undefined for address:', address);
-        return;
-      }
-
-      // Create deposit record
-      const deposit = this.depositRepository.create({
-        userId,
-        assetId,
-        amount: parseFloat(amount),
-        status: DepositStatus.PENDING,
-        network,
-        txHash,
-        cryptoAddress: address,
+        lock: { mode: 'pessimistic_write' }
       });
 
-      await this.depositRepository.save(deposit);
-      console.log(`Deposit record created for transaction ${txHash}`);
+      if (!deposit) {
+        console.error('No pending deposit found for address:', address);
+        return;
+      }
+
+      // Update existing deposit record
+      deposit.txHash = txHash;
+      deposit.amount = parseFloat(amount);
+      deposit.status = DepositStatus.CONFIRMED;
+      deposit.confirmedAt = new Date();
+      
+      await manager.save(deposit);
+      console.log(`Deposit ${deposit.id} updated for transaction ${txHash}`);
 
       // Update user balance
-      await this.updateUserBalance(userId, assetId, parseFloat(amount));
+      await this.updateUserBalance(deposit.userId, deposit.assetId, parseFloat(amount));
       
-      // Update deposit status to CONFIRMED
-      deposit.status = DepositStatus.CONFIRMED;
-      await this.depositRepository.save(deposit);
-      
-      console.log(`Deposit ${deposit.id} confirmed and user balance updated for user ${userId}`);
-    } catch (error) {
-      console.error(`Error handling transaction ${txHash}: ${error.message}`);
-      throw error;
-    }
+      console.log(`Deposit ${deposit.id} confirmed and user balance updated for user ${deposit.userId}`);
+    });
   }
   
   private async verifyTransaction(

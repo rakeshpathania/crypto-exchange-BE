@@ -60,6 +60,7 @@ export class DepositService {
 
   async initiateCryptoDeposit(userId: string, depositData: CryptoDepositDto): Promise<{ address: string, network: CryptoNetwork, fee: number, depositId: string }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
+    console.log("user found", user);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -68,10 +69,9 @@ export class DepositService {
     if (!asset) {
       throw new NotFoundException('Asset not found');
     }
-
+    console.log("user found", userId);
     const cryptoAddress = await this.cryptoDepositService.generateDepositAddress(
       userId,
-      depositData.assetId,
       depositData.network,
     );
 
@@ -80,7 +80,7 @@ export class DepositService {
       userId,
       asset,
       assetId: depositData.assetId,
-      amount: depositData.amount,
+      amount: 0, // Will be updated when transaction is detected
       status: DepositStatus.PENDING,
       method: DepositMethod.CRYPTO,
       network: depositData.network,
@@ -92,10 +92,10 @@ export class DepositService {
     const networkFee = this.cryptoDepositService.getNetworkFee(depositData.network);
 
     return {
-      address: cryptoAddress,
+      address: "cryptoAddress",
       network: depositData.network,
       fee: networkFee,
-      depositId: deposit.id,
+      depositId: "deposit.id",
     };
   }
 
