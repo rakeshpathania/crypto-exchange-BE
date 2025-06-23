@@ -10,10 +10,12 @@ import { Asset } from '../db/entities/asset.entity';
 import { Balance } from '../db/entities/balance.entity';
 import { StripeService } from './stripe.service';
 import { CryptoDepositService } from './crypto-deposit.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Deposit, User, Asset, Balance]),
+    AuthModule,
   ],
   controllers: [DepositController, StripeWebhookController, BlockchainWebhookController],
   providers: [DepositService, StripeService, CryptoDepositService],

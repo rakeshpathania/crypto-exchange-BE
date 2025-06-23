@@ -5,7 +5,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('auth')
@@ -98,4 +98,5 @@ export class AuthController {
     // You can customize this URL to match your frontend application
     res.redirect(`http://localhost:3000/auth-success?token=${token}&userId=${user.id}`);
   }
+
 }

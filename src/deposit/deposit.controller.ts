@@ -26,7 +26,7 @@ export class DepositController {
     @Request() req,
     @Body() depositData: CardDepositDto,
   ) {
-    return this.depositService.initiateCardDeposit(req.user.userId, depositData);
+    return this.depositService.initiateCardDeposit(req.user.id, depositData);
   }
 
   @ApiOperation({ summary: 'Create a setup intent for saving payment methods' })
@@ -34,7 +34,7 @@ export class DepositController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Post('setup-intent')
   async createSetupIntent(@Request() req) {
-    return this.stripeService.createSetupIntent(req.user.userId);
+    return this.stripeService.createSetupIntent(req.user.id);
   }
 
   @ApiOperation({ summary: 'Get saved payment methods' })
@@ -42,7 +42,7 @@ export class DepositController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Get('payment-methods')
   async getPaymentMethods(@Request() req) {
-    return this.stripeService.listPaymentMethods(req.user.userId);
+    return this.stripeService.listPaymentMethods(req.user.id);
   }
 
   @ApiOperation({ summary: 'Initiate a crypto deposit' })
@@ -73,7 +73,7 @@ export class DepositController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Get()
   async getUserDeposits(@Request() req): Promise<Deposit[]> {
-    return this.depositService.getUserDeposits(req.user.userId);
+    return this.depositService.getUserDeposits(req.user.id);
   }
 
 
