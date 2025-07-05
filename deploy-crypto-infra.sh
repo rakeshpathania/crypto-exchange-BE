@@ -59,6 +59,11 @@ aws cloudformation deploy \
         EtherscanApiKey=$ETHERSCAN_API_KEY \
         EthNodeUrl=$ETH_NODE_URL \
         AdminEmail=$ADMIN_EMAIL \
+        DatabaseHost=$DATABASE_HOST \
+        DatabasePort=$DATABASE_PORT \
+        DatabaseName=$DATABASE_NAME \
+        DatabaseUsername=$DATABASE_USERNAME \
+        DatabasePassword=$DATABASE_PASSWORD \
     --capabilities CAPABILITY_NAMED_IAM
 
 # Upload Lambda code

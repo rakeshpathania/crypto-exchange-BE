@@ -4,16 +4,13 @@ import { Repository } from 'typeorm';
 import { Deposit, DepositStatus, CryptoNetwork } from '../db/entities/deposit.entity';
 import { Asset } from '../db/entities/asset.entity';
 import { Balance } from '../db/entities/balance.entity';
-import { 
-  EventBridgeClient, 
-  PutEventsCommand 
-} from '@aws-sdk/client-eventbridge';
+
 import { Web3 } from 'web3';
 import { Alchemy, Network } from 'alchemy-sdk';
 
 @Injectable()
 export class CryptoDepositService {
-  private eventBridge: EventBridgeClient;
+
   private alchemy: Alchemy;
   private web3: Web3;
 
@@ -25,8 +22,7 @@ export class CryptoDepositService {
     @InjectRepository(Asset)
     private assetRepository: Repository<Asset>,
   ) {
-    // Initialize AWS clients
-    this.eventBridge = new EventBridgeClient({ region: process.env.AWS_REGION });
+
 
     // Initialize Alchemy SDK for Ethereum
     const alchemySettings = {
@@ -59,8 +55,7 @@ export class CryptoDepositService {
       }
       console.log(userId, "userId2");
       console.log(`Generated ${network} address ${address} for user ${userId}`);
-      // Set up blockchain monitoring for this address
-      await this.setupAddressMonitoring(address, network);
+      // Address monitoring is handled by the CryptoMonitoringService scheduled task
 
       return address;
     } catch (error) {
@@ -69,23 +64,7 @@ export class CryptoDepositService {
     }
   }
 
-  private async setupAddressMonitoring(address: string, network: CryptoNetwork): Promise<void> {
-    // Create an EventBridge rule to trigger Lambda function periodically
-    const ruleParams = {
-      Entries: [{
-        Source: 'custom.crypto.deposit',
-        DetailType: 'AddressMonitoring',
-        Detail: JSON.stringify({
-          address,
-          network,
-          type: 'MONITOR_ADDRESS',
-        }),
-        EventBusName: process.env.EVENT_BUS_NAME, // Still use custom bus for address monitoring
-      }],
-    };
 
-    await this.eventBridge.send(new PutEventsCommand(ruleParams));
-  }
 
   async handleIncomingTransaction(
     txHash: string,
